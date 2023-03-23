@@ -1,34 +1,9 @@
 import numpy as np
 
-# You are not allowed to import any libraries other than numpy
-
-# SUBMIT YOUR CODE AS A SINGLE PYTHON (.PY) FILE INSIDE A ZIP ARCHIVE
-# THE NAME OF THE PYTHON FILE MUST BE submit.py
-# DO NOT INCLUDE OTHER PACKAGES LIKE SKLEARN, SCIPY, KERAS ETC IN YOUR CODE
-# THE USE OF PROHIBITED LIBRARIES WILL RESULT IN PENALTIES
-
-# DO NOT CHANGE THE NAME OF THE METHOD my_fit BELOW
-# IT WILL BE INVOKED BY THE EVALUATION SCRIPT
-# CHANGING THE NAME WILL CAUSE EVALUATION FAILURE
-
-# You may define any new functions, variables, classes here
-# For example, classes to create the Tree, Nodes etc
-
-################################
-# Non Editable Region Starting #
-################################
-def my_fit( words ):
-################################
-#  Non Editable Region Ending  #
-################################
-
-	# Use this method to train your decision tree model using the word list provided
-	# Return the trained model as is -- do not compress it using pickle etc
-	# Model packing or compression will cause evaluation failure
- 
+def my_fit( words, verbose = False ):
 	dt = Tree( min_leaf_size = 1, max_depth = 15 )
-	dt.fit( words)
-	return dt					# Return the trained model
+	dt.fit( words, verbose )
+	return dt
 
 
 class Tree:
@@ -38,11 +13,14 @@ class Tree:
 		self.min_leaf_size = min_leaf_size
 		self.max_depth = max_depth
 	
-	def fit( self, words):
+	def fit( self, words, verbose = False ):
 		self.words = words
 		self.root = Node( depth = 0, parent = None )
+		if verbose:
+			print( "root" )
+			print( "└───", end = '' )
 		# The root is trained with all the words
-		self.root.fit( all_words = self.words, my_words_idx = np.arange( len( self.words ) ), min_leaf_size = self.min_leaf_size, max_depth = self.max_depth)
+		self.root.fit( all_words = self.words, my_words_idx = np.arange( len( self.words ) ), min_leaf_size = self.min_leaf_size, max_depth = self.max_depth, verbose = verbose )
 
 
 class Node:
@@ -104,13 +82,27 @@ class Node:
 	
 	# Dummy node splitting action -- use a random word as query
 	# Note that any word in the dictionary can be the query
-	def process_node( self, all_words, my_words_idx, history):
+	def process_node( self, all_words, my_words_idx, history, verbose ):
 		# For the root we do not ask any query -- Melbot simply gives us the length of the secret word
 		if len( history ) == 0:
 			query_idx = -1
 			query = ""
 		else:
-			query_idx = np.random.randint( 0, len( all_words ) )
+			# query_idx = np.random.randint( 0, len( all_words ) )
+			min_ent = 10000
+			for i in my_words_idx:
+				temp_split_dict = {}
+				for j in my_words_idx:
+					temp_mask = self.reveal(all_words[i],all_words[j])
+					if temp_mask not in temp_split_dict:
+						temp_split_dict[temp_mask] = 0
+					temp_split_dict[temp_mask] += 1
+				ent = 0
+				for temporary_mask in temp_split_dict:
+					ent += temp_split_dict[temporary_mask]*np.log2(temp_split_dict[temporary_mask])/len(all_words)
+				if (ent<min_ent):
+					query_idx = i
+					min_ent = ent
 			query = all_words[ query_idx ]
 		
 		split_dict = {}
@@ -122,12 +114,12 @@ class Node:
 			
 			split_dict[ mask ].append( idx )
 		
-		if len( split_dict.items() ) < 2:
+		if len( split_dict.items() ) < 2 and verbose:
 			print( "Warning: did not make any meaningful split with this query!" )
 		
 		return ( query_idx, split_dict )
 	
-	def fit( self, all_words, my_words_idx, min_leaf_size, max_depth, fmt_str = "    "):
+	def fit( self, all_words, my_words_idx, min_leaf_size, max_depth, fmt_str = "    ", verbose = False ):
 		self.all_words = all_words
 		self.my_words_idx = my_words_idx
 		
@@ -136,12 +128,23 @@ class Node:
 		if len( my_words_idx ) <= min_leaf_size or self.depth >= max_depth:
 			self.is_leaf = True
 			self.query_idx = self.process_leaf( self.my_words_idx, self.history )
+			if verbose:
+				print( '█' )
 		else:
 			self.is_leaf = False
-			( self.query_idx, split_dict ) = self.process_node( self.all_words, self.my_words_idx, self.history)
+			( self.query_idx, split_dict ) = self.process_node( self.all_words, self.my_words_idx, self.history, verbose )
 			
+			if verbose:
+				print( all_words[ self.query_idx ] )
 			
 			for ( i, ( response, split ) ) in enumerate( split_dict.items() ):
+				if verbose:
+					if i == len( split_dict ) - 1:
+						print( fmt_str + "└───", end = '' )
+						fmt_str += "    "
+					else:
+						print( fmt_str + "├───", end = '' )
+						fmt_str += "│   "
 				
 				# Create a new child for every split
 				self.children[ response ] = Node( depth = self.depth + 1, parent = self )
@@ -150,4 +153,4 @@ class Node:
 				self.children[ response ].history = history
 				
 				# Recursively train this child node
-				self.children[ response ].fit( self.all_words, split, min_leaf_size, max_depth, fmt_str)
+				self.children[ response ].fit( self.all_words, split, min_leaf_size, max_depth, fmt_str, verbose )
