@@ -89,32 +89,31 @@ class Node:
         # query_idx = 0
         if len( history ) == 0:
             query_idx = -1
-            query = ""
+            query = "111111111111111"
         else:
-            # if len(my_words_idx)<4:
-            #     query_idx = random.choice(my_words_idx)
-            # else:
-            if self.depth == 0:
-                query_idx = 0
-                query = "AAAAAAAAAAAAAAA"
+
+            l=len(all_words[my_words_idx[0]])
+
+            arr = [[0 for i in range(l)] for j in range(26)]
+            for i in my_words_idx:
+                j=0
+                while j < l:
+                    arr[ord((all_words[i])[j])-ord('a')][j]+=1
+                    j+=1
             
-            else:            
-                min_ent = float('inf')
-                for i in my_words_idx:
-                    temp_split_dict = {}
-                    for j in my_words_idx:
-                        temp_mask = self.reveal(all_words[i],all_words[j])
-                        if temp_mask not in temp_split_dict:
-                            temp_split_dict[temp_mask] = 0
-                        temp_split_dict[temp_mask] += 1
-                    ent = 0
-                    for temporary_mask in temp_split_dict:
-                        ent += temp_split_dict[temporary_mask]*np.log2(temp_split_dict[temporary_mask])/len(all_words)
-                    if (ent<min_ent):
-                        query_idx = i
-                        min_ent = ent
-     
-                query = all_words[ query_idx ]
+            max=0
+            temp=0
+            for i in my_words_idx:
+                j=0
+                temp=0
+                while j < l:
+                    temp+=arr[ord((all_words[i])[j])-ord('a')][j]
+                    j+=1
+                if temp>max:
+                    query_idx=i
+                    max=temp
+        
+            query = all_words[ query_idx ]
    
         split_dict = {}
         
